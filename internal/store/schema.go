@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   id              TEXT PRIMARY KEY,
   command         TEXT NOT NULL,
   state           TEXT NOT NULL CHECK (state IN ('pending','processing','completed','failed','dead')),
-  priority        INTEGER NOT NULL DEFAULT 0,
+  priority        TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low','normal','high','critical')),
   run_at          TEXT,
   timeout         INTEGER,
   attempts        INTEGER NOT NULL DEFAULT 0,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   stderr          TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_jobs_claimable ON jobs(state, priority DESC, next_attempt_at, run_at);
+CREATE INDEX IF NOT EXISTS idx_jobs_claimable ON jobs(state, next_attempt_at, run_at);
 
 CREATE TABLE IF NOT EXISTS workers (
   pid         INTEGER PRIMARY KEY,

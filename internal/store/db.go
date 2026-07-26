@@ -1,8 +1,10 @@
 package store
 
 import (
+	//golang standard api to talk with the sql (generic)
 	"database/sql"
 
+		//sqllite driver
 	_ "modernc.org/sqlite"
 )
 
@@ -15,7 +17,7 @@ func Open(dbPath string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	//t prevents database/sql from opening multiple idle connections to the same SQLite file, since only one can write at a time anyway.
 	db.SetMaxOpenConns(1)
 
 	if err := runMigration(db); err != nil {

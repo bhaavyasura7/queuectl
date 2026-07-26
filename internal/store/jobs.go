@@ -10,7 +10,7 @@ import (
 
 var ErrNoJob = errors.New("no claimable job")
 
-func (s *Store) InsertJob(id, command, now string, priority int, runAt *string, timeout *int, maxRetries int, backoffBase float64) error {
+func (s *Store) InsertJob(id, command, now string, priority string, runAt *string, timeout *int, maxRetries int, backoffBase float64) error {
 	_, err := s.db.Exec(`
 		INSERT INTO jobs (id, command, state, priority, run_at, timeout, attempts, max_retries, backoff_base, created_at, updated_at)
 		VALUES (?, ?, 'pending', ?, ?, ?, 0, ?, ?, ?, ?)
@@ -36,7 +36,12 @@ func (s *Store) ClaimNext(workerID string) (string, string, error) {
 		SELECT id, command FROM jobs
 		WHERE state = 'pending' AND (run_at IS NULL OR run_at <= ?)
 		   OR (state = 'failed' AND next_attempt_at <= ?)
-		ORDER BY priority DESC, created_at ASC
+		ORDER BY CASE priority
+			  WHEN 'critical' THEN 4
+			  WHEN 'high'     THEN 3
+			  WHEN 'normal'   THEN 2
+			  WHEN 'low'      THEN 1
+			END DESC, created_at ASC
 		LIMIT 1
 	`, now, now).Scan(&id, &command)
 	if err == sql.ErrNoRows {
@@ -54,7 +59,7 @@ func (s *Store) ClaimNext(workerID string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-
+	//safety net what if the above things failed
 	n, _ := res.RowsAffected()
 	if n != 1 {
 		return "", "", ErrNoJob
@@ -70,7 +75,7 @@ func (s *Store) ClaimNext(workerID string) (string, string, error) {
 func (s *Store) CompleteJob(id string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := s.db.Exec(`
-		UPDATE jobs SET state = 'completed', updated_at = ?, last_error = NULL WHERE id = ?
+		UPDATE jobs SET state = 'completed', updated_	at = ?, last_error = NULL WHERE id = ?
 	`, now, id)
 	return err
 }
@@ -126,7 +131,7 @@ func (s *Store) TouchHeartbeat(id string) error {
 func (s *Store) ReaperScan(leaseTimeout time.Duration) error {
 	staleBefore := time.Now().UTC().Add(-leaseTimeout).Format(time.RFC3339)
 
-	rows, err := s.db.Query(`
+	rows, err := s.db.Query(`	
 		SELECT id, attempts, max_retries, backoff_base FROM jobs
 		WHERE state = 'processing' AND heartbeat_at < ?
 	`, staleBefore)
@@ -171,7 +176,7 @@ func (s *Store) ReaperScan(leaseTimeout time.Duration) error {
 		}{id, newState, nextAttempt})
 	}
 
-	for _, u := range updates {
+	for _, u := range updates {	
 		_, err := s.db.Exec(`
 			UPDATE jobs
 			SET state = ?, attempts = attempts + 1, next_attempt_at = ?, updated_at = ?

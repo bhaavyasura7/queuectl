@@ -4,7 +4,7 @@ type Job struct {
 	ID            string
 	Command       string
 	State         string
-	Priority      int
+	Priority      string
 	RunAt         *string
 	Timeout       *int
 	Attempts      int
