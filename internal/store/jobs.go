@@ -21,18 +21,12 @@ func (s *Store) InsertJob(id, command, now string, priority string, runAt *strin
 func (s *Store) ClaimNext(workerID string) (string, string, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return "", "", err
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.Exec("BEGIN IMMEDIATE"); err != nil {
+	if _, err := s.db.Exec("BEGIN IMMEDIATE"); err != nil {
 		return "", "", err
 	}
 
 	var id, command string
-	err = tx.QueryRow(`
+	err := s.db.QueryRow(`
 		SELECT id, command FROM jobs
 		WHERE state = 'pending' AND (run_at IS NULL OR run_at <= ?)
 		   OR (state = 'failed' AND next_attempt_at <= ?)
@@ -45,27 +39,32 @@ func (s *Store) ClaimNext(workerID string) (string, string, error) {
 		LIMIT 1
 	`, now, now).Scan(&id, &command)
 	if err == sql.ErrNoRows {
+		s.db.Exec("ROLLBACK")
 		return "", "", ErrNoJob
 	}
 	if err != nil {
+		s.db.Exec("ROLLBACK")
 		return "", "", err
 	}
 
-	res, err := tx.Exec(`
+	res, err := s.db.Exec(`
 		UPDATE jobs
 		SET state = 'processing', worker_id = ?, claimed_at = ?, heartbeat_at = ?, updated_at = ?
 		WHERE id = ? AND state IN ('pending', 'failed')
 	`, workerID, now, now, now, id)
 	if err != nil {
+		s.db.Exec("ROLLBACK")
 		return "", "", err
 	}
-	//safety net what if the above things failed
+
 	n, _ := res.RowsAffected()
 	if n != 1 {
+		s.db.Exec("ROLLBACK")
 		return "", "", ErrNoJob
 	}
 
-	if err := tx.Commit(); err != nil {
+	if _, err := s.db.Exec("COMMIT"); err != nil {
+		s.db.Exec("ROLLBACK")
 		return "", "", err
 	}
 
@@ -75,7 +74,7 @@ func (s *Store) ClaimNext(workerID string) (string, string, error) {
 func (s *Store) CompleteJob(id string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := s.db.Exec(`
-		UPDATE jobs SET state = 'completed', updated_	at = ?, last_error = NULL WHERE id = ?
+		UPDATE jobs SET state = 'completed', updated_at = ?, last_error = NULL WHERE id = ?
 	`, now, id)
 	return err
 }
@@ -112,6 +111,13 @@ func (s *Store) FailJob(id string, attempts int, maxRetries int, backoffBase flo
 func (s *Store) GetJob(id string) (*sql.Row, error) {
 	row := s.db.QueryRow("SELECT * FROM jobs WHERE id = ?", id)
 	return row, nil
+}
+
+func (s *Store) GetJobStats(id string) (attempts int, maxRetries int, backoffBase float64, err error) {
+	err = s.db.QueryRow(
+		"SELECT attempts, max_retries, backoff_base FROM jobs WHERE id = ?", id,
+	).Scan(&attempts, &maxRetries, &backoffBase)
+	return
 }
 
 func (s *Store) ListJobsByState(state string) (*sql.Rows, error) {
