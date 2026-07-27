@@ -1,24 +1,24 @@
 package types
 
 type Job struct {
-	ID            string
-	Command       string
-	State         string
-	Priority      string
-	RunAt         *string
-	Timeout       *int
-	Attempts      int
-	MaxRetries    int
-	BackoffBase   float64
-	CreatedAt     string
-	UpdatedAt     string
-	NextAttemptAt *string
-	ClaimedAt     *string
-	HeartbeatAt   *string
-	WorkerID      *string
-	LastError     *string
-	Stdout        *string
-	Stderr        *string
+	ID            string  `json:"id"`
+	Command       string  `json:"command"`
+	State         string  `json:"state"`
+	Priority      string  `json:"priority"`
+	RunAt         *string `json:"run_at,omitempty"`
+	Timeout       *int    `json:"timeout,omitempty"`
+	Attempts      int     `json:"attempts"`
+	MaxRetries    int     `json:"max_retries"`
+	BackoffBase   float64 `json:"backoff_base"`
+	CreatedAt     string  `json:"created_at"`
+	UpdatedAt     string  `json:"updated_at"`
+	NextAttemptAt *string `json:"next_attempt_at,omitempty"`
+	ClaimedAt     *string `json:"claimed_at,omitempty"`
+	HeartbeatAt   *string `json:"heartbeat_at,omitempty"`
+	WorkerID      *string `json:"worker_id,omitempty"`
+	LastError     *string `json:"last_error,omitempty"`
+	Stdout        *string `json:"stdout,omitempty"`
+	Stderr        *string `json:"stderr,omitempty"`
 }
 
 type WorkerRow struct {
@@ -28,7 +28,4 @@ type WorkerRow struct {
 	Status    string
 }
 
-type ConfigRow struct {
-	Key   string
-	Value string
-}
+

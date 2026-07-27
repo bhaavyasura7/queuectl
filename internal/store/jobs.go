@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"queuectl/internal/types"
 )
 
 var ErrNoJob = errors.New("no claimable job")
@@ -120,7 +122,22 @@ func (s *Store) GetJobStats(id string) (attempts int, maxRetries int, backoffBas
 	return
 }
 
+func ScanJob(rows *sql.Rows) (types.Job, error) {
+	var j types.Job
+	err := rows.Scan(
+		&j.ID, &j.Command, &j.State, &j.Priority, &j.RunAt, &j.Timeout,
+		&j.Attempts, &j.MaxRetries, &j.BackoffBase,
+		&j.CreatedAt, &j.UpdatedAt,
+		&j.NextAttemptAt, &j.ClaimedAt, &j.HeartbeatAt,
+		&j.WorkerID, &j.LastError, &j.Stdout, &j.Stderr,
+	)
+	return j, err
+}
+
 func (s *Store) ListJobsByState(state string) (*sql.Rows, error) {
+	if state == "" {
+		return s.db.Query("SELECT * FROM jobs ORDER BY created_at ASC")
+	}
 	return s.db.Query("SELECT * FROM jobs WHERE state = ? ORDER BY created_at ASC", state)
 }
 
