@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
+	"queuectl/internal/queue"
 	"queuectl/internal/types"
 )
 
@@ -87,10 +87,9 @@ func (s *Store) FailJob(id string, attempts int, maxRetries int, backoffBase flo
 	var state string
 	var nextAttemptAt *string
 
-	if attempts+1 < maxRetries {
+	if attempts < maxRetries {
 		state = "failed"
-		delay := time.Duration(math.Pow(backoffBase, float64(attempts+1)) * float64(time.Second))
-		nat := time.Now().UTC().Add(delay).Format(time.RFC3339)
+		nat := queue.NextAttemptAt(time.Now().UTC(), backoffBase, attempts+1).Format(time.RFC3339)
 		nextAttemptAt = &nat
 	} else {
 		state = "dead"
@@ -183,10 +182,9 @@ func (s *Store) ReaperScan(leaseTimeout time.Duration) error {
 		var newState string
 		var nextAttempt *string
 
-		if newAttempts < maxRetries {
+		if newAttempts <= maxRetries {
 			newState = "failed"
-			delay := time.Duration(math.Pow(backoffBase, float64(newAttempts)) * float64(time.Second))
-			nat := time.Now().UTC().Add(delay).Format(time.RFC3339)
+			nat := queue.NextAttemptAt(time.Now().UTC(), backoffBase, newAttempts).Format(time.RFC3339)
 			nextAttempt = &nat
 		} else {
 			newState = "dead"
