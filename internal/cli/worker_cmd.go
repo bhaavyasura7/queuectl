@@ -149,8 +149,9 @@ func claimLoop(st *store.Store, workerID string, id int) {
 
 		log.Printf("[%d] claimed job %s: %s", id, jobID, command)
 
+		timeout, _ := st.GetJobTimeout(jobID)
 		result := worker.RunWithHeartbeat(jobID, st, func() worker.RunResult {
-			return worker.RunCommand(command)
+			return worker.RunCommandWithTimeout(command, timeout)
 		})
 
 		if result.ExitCode == 0 {

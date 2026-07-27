@@ -124,6 +124,15 @@ func (s *Store) GetJobStats(id string) (attempts int, maxRetries int, backoffBas
 	return
 }
 
+func (s *Store) GetJobTimeout(id string) (timeout int, err error) {
+	var t *int
+	err = s.db.QueryRow("SELECT timeout FROM jobs WHERE id = ?", id).Scan(&t)
+	if t != nil {
+		timeout = *t
+	}
+	return
+}
+
 func ScanJob(rows *sql.Rows) (types.Job, error) {
 	var j types.Job
 	err := rows.Scan(

@@ -2,8 +2,10 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
+	"time"
 )
 
 type RunResult struct {
@@ -14,7 +16,18 @@ type RunResult struct {
 }
 
 func RunCommand(command string) RunResult {
-	cmd := exec.Command("sh", "-c", command)
+	return RunCommandWithTimeout(command, 0)
+}
+
+func RunCommandWithTimeout(command string, timeoutSec int) RunResult {
+	ctx := context.Background()
+	var cancel context.CancelFunc
+	if timeoutSec > 0 {
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSec)*time.Second)
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
@@ -28,7 +41,10 @@ func RunCommand(command string) RunResult {
 	}
 
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		if ctx.Err() == context.DeadlineExceeded {
+			result.ExitCode = -1
+			result.Error = fmt.Sprintf("timeout after %ds", timeoutSec)
+		} else if exitErr, ok := err.(*exec.ExitError); ok {
 			result.ExitCode = exitErr.ExitCode()
 			result.Error = fmt.Sprintf("exit code %d", result.ExitCode)
 		} else {
@@ -39,3 +55,4 @@ func RunCommand(command string) RunResult {
 
 	return result
 }
+
