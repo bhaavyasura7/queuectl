@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="5">
+<title>QueueCTL Dashboard</title>
+<style>
+body{font-family:monospace;background:#111;color:#eee;padding:20px}
+h1{color:#0ff}
+table{width:100%;border-collapse:collapse;margin:10px 0}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #333}
+th{color:#0f0}
+.pending{color:#ff0}
+.processing{color:#0ff}
+.completed{color:#0f0}
+.failed{color:#f60}
+.dead{color:#f00}
+.status{display:flex;gap:30px;margin:15px 0}
+.stat{padding:10px 20px;background:#222;border-radius:4px}
+.stat span{font-size:24px;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>QueueCTL Dashboard</h1>
+<div id="status" class="status">Loading...</div>
+<h3>Jobs</h3>
+<table><thead><tr><th>ID</th><th>State</th><th>Priority</th><th>Attempts</th><th>Command</th><th>Error</th></tr></thead><tbody id="jobs"></tbody></table>
+<script>
+async function load(){
+  const s=await fetch('/api/status').then(r=>r.json());
+  document.getElementById('status').innerHTML=
+    ['pending','processing','completed','failed','dead'].map(k=>`<div class=stat><div>${k}</div><span class=${k}>${s[k]||0}</span></div>`).join('')+
+    `<div class=stat><div>workers</div><span>${s.live_workers||0}</span></div>`;
+  const jobs=await fetch('/api/jobs').then(r=>r.json());
+  document.getElementById('jobs').innerHTML=jobs.map(j=>
+    `<tr><td>${j.id.substring(0,8)}</td><td class=${j.state}>${j.state}</td><td>${j.priority}</td><td>${j.attempts}/${j.max_retries}</td><td>${j.command}</td><td>${j.last_error||''}</td></tr>`
+  ).join('');
+}
+load();
+</script>
+</body>
+</html>
