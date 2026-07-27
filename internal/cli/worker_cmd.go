@@ -35,6 +35,8 @@ func NewWorkerCmd() *cobra.Command {
 			workerID := fmt.Sprintf("%d", os.Getpid())
 			log.Printf("worker %s started, count=%d", workerID, count)
 
+			worker.StartReaper(st)
+
 			for i := 0; i < count; i++ {
 				go claimLoop(st, workerID, i)
 			}
@@ -74,7 +76,9 @@ func claimLoop(st *store.Store, workerID string, id int) {
 
 		log.Printf("[%d] claimed job %s: %s", id, jobID, command)
 
-		result := worker.RunCommand(command)
+		result := worker.RunWithHeartbeat(jobID, st, func() worker.RunResult {
+			return worker.RunCommand(command)
+		})
 
 		if result.ExitCode == 0 {
 			if err := st.CompleteJob(jobID); err != nil {
