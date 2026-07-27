@@ -21,6 +21,9 @@ func (s *Store) InsertJob(id, command, now string, priority string, runAt *strin
 }
 
 func (s *Store) ClaimNext(workerID string) (string, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	if _, err := s.db.Exec("BEGIN IMMEDIATE"); err != nil {

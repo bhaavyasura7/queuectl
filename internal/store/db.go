@@ -1,15 +1,15 @@
 package store
 
 import (
-	//golang standard api to talk with the sql (generic)
 	"database/sql"
+	"sync"
 
-		//sqllite driver
 	_ "modernc.org/sqlite"
 )
 
 type Store struct {
-	db *sql.DB
+	db    *sql.DB
+	mu    sync.Mutex
 }
 
 func Open(dbPath string) (*Store, error) {
