@@ -30,3 +30,8 @@ func (s *Store) LiveWorkerCount() (int, error) {
 	err := s.db.QueryRow("SELECT COUNT(*) FROM workers WHERE status = 'running'").Scan(&count)
 	return count, err
 }
+
+func (s *Store) DeregisterWorkerByPID(pid int) error {
+	_, err := s.db.Exec("DELETE FROM workers WHERE pid = ?", pid)
+	return err
+}
