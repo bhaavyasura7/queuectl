@@ -11,6 +11,7 @@ func main() {
 		Use:   "queuectl",
 		Short: "SQLite-backed job queue CLI",
 	}
+	root.CompletionOptions.DisableDefaultCmd = true
 	root.AddCommand(cli.NewEnqueueCmd())
 	root.AddCommand(cli.NewWorkerCmd())
 	root.AddCommand(cli.NewStatusCmd())
